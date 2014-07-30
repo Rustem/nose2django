@@ -6,38 +6,45 @@ from nose2.events import Plugin
 
 log = logging.getLogger('nose2.plugins.djangorunner')
 
+
 class DjangoConfig(Plugin):
     configSection = 'django-runner'
     commandLineSwitch = (None, 'django-runner',
-        'Initialises the django test environment and re-orders the test suite')
-        
+                         'Initialises the django test environment and re-orders the test suite')
 
     def startTestRun(self, event):
         """Nose2 hook for the beginning of test running.
         Init the django environ and re-order the tests according to
         the django documented test runner behaviour.
         """
-        from django.test.simple import reorder_suite, DjangoTestSuiteRunner
+        try:
+            # Django >= 1.6.1
+            from django.test.runner import DiscoverRunner, reorder_suite
+        except ImportError:
+            from django.test.simple import (
+                DjangoTestSuiteRunner as DiscoverRunner,
+                reorder_suite)
         from django.test.utils import setup_test_environment
-        # Init the django default runner so we can call it's functions as needed
-        self.dtsr = DjangoTestSuiteRunner()
+        # Init the django default runner so we can call it's functions as
+        # needed
+        self.dtsr = DiscoverRunner()
 
         setup_test_environment()
 
         event.suite = reorder_suite(event.suite, (unittest.TestCase,))
 
         self.old_config = self.dtsr.setup_databases()
-        
+
         if self.session.verbosity > 1:
             # ensure that deprecation warnings are displayed during testing
             # the following state is assumed:
             # logging.capturewarnings is true
             # a "default" level warnings filter has been added for
-            # DeprecationWarning. See django.conf.LazySettings._configure_logging
+            # DeprecationWarning. See
+            # django.conf.LazySettings._configure_logging
             self.logger = logging.getLogger('py.warnings')
             handler = logging.StreamHandler()
             self.logger.addHandler(handler)
-
 
     def afterTestRun(self, event):
         """Nose2 hook for the end of the test run"""

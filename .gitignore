@@ -3,3 +3,5 @@ nose2_django_plugin.egg-info
 *.html
 *.pyc
 *.tar.gz
+build
+venv
